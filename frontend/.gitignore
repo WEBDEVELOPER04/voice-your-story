@@ -1,0 +1,24 @@
+# Node.js / React
+node_modules/
+build/
+dist/
+.env
+.DS_Store
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python / Flask
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+instance/
+uploads/
+
+# VSCode
+.vscode/
