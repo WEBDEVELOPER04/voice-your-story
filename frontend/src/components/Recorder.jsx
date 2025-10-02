@@ -1,6 +1,8 @@
 import { useState, useRef } from "react";
 import { ReactTyped } from "react-typed";
 
+const API_URL = process.env.REACT_APP_API_URL;
+
 function Recorder() {
   const [recording, setRecording] = useState(false);
   const [audioURL, setAudioURL] = useState(null);
@@ -23,7 +25,7 @@ function Recorder() {
       const formData = new FormData();
       formData.append("audio", blob, "recording.webm");
 
-      fetch("http://localhost:5000/upload", {
+      fetch(`${API_URL}/upload`, {
         method: "POST",
         body: formData,
       })

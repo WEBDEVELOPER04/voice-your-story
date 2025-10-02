@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 
+const API_URL = process.env.REACT_APP_API_URL;
+
 function StoryList() {
   const [stories, setStories] = useState([]);
   const [likedStory, setLikedStory] = useState(null);
 
   const fetchStories = () => {
-    fetch("http://localhost:5000/stories")
+    fetch(`${API_URL}/stories`)
       .then((res) => res.json())
       .then((data) => {
         const numbered = data.map((story, index) => ({
@@ -34,7 +36,7 @@ function StoryList() {
     }
 
     try {
-      await fetch(`http://localhost:5000/stories/${story.id}?delete_token=${token}`, {
+      await fetch(`${API_URL}/stories/${story.id}?delete_token=${token}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ delete_token: token }),
@@ -55,7 +57,7 @@ function StoryList() {
 
   const handleLike = async (storyId) => {
     setLikedStory(storyId);
-    await fetch(`http://localhost:5000/stories/${storyId}/like`, {
+    await fetch(`${API_URL}/stories/${storyId}/like`, {
       method: "POST",
     });
     fetchStories();
@@ -88,7 +90,7 @@ function StoryList() {
           </div>
           <audio
             controls
-            src={`http://localhost:5000/uploads/${story.filename}`}
+            src={`${API_URL}/uploads/${story.filename}`}
             className="w-full rounded-lg"
           />
           {/* Reaction Button */}
