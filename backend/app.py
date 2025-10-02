@@ -20,6 +20,12 @@ db.init_app(app)
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+#Environment variable for admin secret
+ADMIN_SECRET = os.getenv("ADMIN_SECRET", "supersecret")
+
+#Other enviornment variable
+BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:5000")
+
 @app.route('/upload', methods=['POST'])
 def upload_audio():
     if 'audio' not in request.files:
