@@ -84,8 +84,6 @@ def list_stories():
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
-ADMIN_SECRET = os.getenv("ADMIN_SECRET", "supersecret")
-
 @app.route('/stories/<int:story_id>', methods=["DELETE"])
 def delete_story(story_id):
     data = request.get_json() or {}
