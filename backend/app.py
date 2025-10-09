@@ -23,11 +23,11 @@ BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:5000")
 # S3 setup
 S3_BUCKET = os.getenv("AWS_S3_BUCKET_NAME")
 S3_REGION = os.getenv("AWS_S3_REGION")
-s3_client = boto3.client(
+s3 = boto3.client(
     "s3",
     aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
     aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-    region_name=S3_REGION
+    region_name=os.getenv("AWS_S3_REGION", "us-west-2")
 )
 
 
@@ -47,7 +47,7 @@ def upload_audio():
     # Upload to S3
     s3_key = f"uploads/{filename}"
     try:
-        s3_client.upload_fileobj(
+        s3.upload_fileobj(
             audio,
             S3_BUCKET,
             s3_key,
@@ -67,6 +67,7 @@ def upload_audio():
     return jsonify({
         'id': story.id,
         'filename': story.filename,
+        'url': file_url,
         'created_at': story.created_at.isoformat(),
         'delete_token': story.delete_token
     })
@@ -89,7 +90,7 @@ def list_stories():
         normalized.append({
             'id': s.id,
             'filename': s.filename,
-            'url': s.filename,  # Use S3 URL directly
+            'url': f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{s.filename}",
             'timestamp': iso,
             'likes': s.likes,
         })
@@ -107,13 +108,11 @@ def delete_story(story_id):
         return jsonify({'error': 'Story not found'}), 404
 
     if token == story.delete_token or token == ADMIN_SECRET:
-        # Extract S3 key from URL
-        if "amazonaws.com/" in story.filename:
-            s3_key = story.filename.split(".com/")[1]
-            try:
-                s3_client.delete_object(Bucket=S3_BUCKET, Key=s3_key)
-            except Exception as e:
-                print(f"Failed to delete from S3: {e}")
+        try:
+            s3.delete_object(Bucket=S3_BUCKET, Key=story.filename)
+        except Exception as e:
+            print(f"⚠️ Failed to delete from S3: {e}")
+        
 
         db.session.delete(story)
         db.session.commit()
