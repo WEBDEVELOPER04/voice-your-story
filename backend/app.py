@@ -139,6 +139,12 @@ def like_story(story_id):
     db.session.commit()
     return jsonify({'id': story.id, 'likes': story.likes})
 
+@app.route("/initdb")
+def init_db():
+    with app.app_context():
+        db.create_all()
+    return jsonify({"message": "Database tables created successfully"})
+
 
 if __name__ == '__main__':
     with app.app_context():
