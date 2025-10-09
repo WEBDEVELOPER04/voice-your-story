@@ -68,7 +68,7 @@ def upload_audio():
     file_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
 
     # Save to database
-    story = Story(filename=file_url, created_at=datetime.now(timezone.utc))
+    story = Story(filename=s3_key, created_at=datetime.now(timezone.utc))
     db.session.add(story)
     db.session.commit()
 

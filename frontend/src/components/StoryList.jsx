@@ -90,7 +90,7 @@ function StoryList() {
           </div>
           <audio
             controls
-            src={`${API_URL}/uploads/${story.filename}`}
+            src={story.url}
             className="w-full rounded-lg"
           />
           {/* Reaction Button */}
