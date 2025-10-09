@@ -1,30 +1,35 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
+import boto3
 from datetime import datetime, timezone
 from werkzeug.utils import secure_filename
 import uuid
-from models import db, Story  # import SQLAlchemy db + Story model
+from models import db, Story
 
 app = Flask(__name__)
 CORS(app)
 
-# Configure SQLite database
+# Database setup
 db_path = os.path.join(os.path.dirname(__file__), "stories.db")
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-# Bind SQLAlchemy to this Flask app
 db.init_app(app)
 
-UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-#Environment variable for admin secret
+# Environment vars
 ADMIN_SECRET = os.getenv("ADMIN_SECRET", "supersecret")
-
-#Other enviornment variable
 BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:5000")
+
+# S3 setup
+S3_BUCKET = os.getenv("AWS_S3_BUCKET_NAME")
+S3_REGION = os.getenv("AWS_S3_REGION")
+s3_client = boto3.client(
+    "s3",
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    region_name=S3_REGION
+)
+
 
 @app.route('/upload', methods=['POST'])
 def upload_audio():
@@ -35,13 +40,27 @@ def upload_audio():
     if audio.filename == '':
         return jsonify({'error': 'No selected file'}), 400
 
+    # Give it a unique name
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"recording_{timestamp}.webm"
-    filepath = os.path.join(UPLOAD_FOLDER, secure_filename(filename))
-    audio.save(filepath)
+    filename = secure_filename(f"recording_{timestamp}.webm")
+
+    # Upload to S3
+    s3_key = f"uploads/{filename}"
+    try:
+        s3_client.upload_fileobj(
+            audio,
+            S3_BUCKET,
+            s3_key,
+            ExtraArgs={'ContentType': 'audio/webm', 'ACL': 'public-read'}
+        )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    # Generate the S3 URL
+    file_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
 
     # Save to database
-    story = Story(filename=filename, created_at=datetime.now(timezone.utc))
+    story = Story(filename=file_url, created_at=datetime.now(timezone.utc))
     db.session.add(story)
     db.session.commit()
 
@@ -53,7 +72,6 @@ def upload_audio():
     })
 
 
-
 @app.route('/stories', methods=['GET'])
 def list_stories():
     stories = Story.query.order_by(Story.likes.desc(), Story.created_at.desc()).all()
@@ -61,11 +79,9 @@ def list_stories():
 
     for s in stories:
         ts = s.created_at
-
         if ts is None:
             iso = None
         else:
-            # If datetime is naive (no tzinfo), assume it's UTC
             if ts.tzinfo is None:
                 ts = ts.replace(tzinfo=timezone.utc)
             iso = ts.astimezone(timezone.utc).isoformat()
@@ -73,37 +89,38 @@ def list_stories():
         normalized.append({
             'id': s.id,
             'filename': s.filename,
-            'url': f"http://127.0.0.1:5000/uploads/{s.filename}",
+            'url': s.filename,  # Use S3 URL directly
             'timestamp': iso,
             'likes': s.likes,
         })
 
     return jsonify(normalized)
 
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
 
 @app.route('/stories/<int:story_id>', methods=["DELETE"])
 def delete_story(story_id):
     data = request.get_json() or {}
     token = data.get("delete_token")
-    print("Received delete token:", token)
 
     story = Story.query.get(story_id)
     if not story:
         return jsonify({'error': 'Story not found'}), 404
 
     if token == story.delete_token or token == ADMIN_SECRET:
-        filepath = os.path.join(UPLOAD_FOLDER, story.filename)
-        if os.path.exists(filepath):
-            os.remove(filepath)
+        # Extract S3 key from URL
+        if "amazonaws.com/" in story.filename:
+            s3_key = story.filename.split(".com/")[1]
+            try:
+                s3_client.delete_object(Bucket=S3_BUCKET, Key=s3_key)
+            except Exception as e:
+                print(f"Failed to delete from S3: {e}")
 
         db.session.delete(story)
         db.session.commit()
         return jsonify({'message': 'Story deleted successfully'})
 
     return jsonify({'error': 'Unauthorized'}), 403
+
 
 @app.route('/stories/<int:story_id>/like', methods=['POST'])
 def like_story(story_id):
@@ -116,8 +133,8 @@ def like_story(story_id):
     return jsonify({'id': story.id, 'likes': story.likes})
 
 
-
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()  # ensures SQLite tables exist
+        db.create_all()
     app.run(debug=True)
+
