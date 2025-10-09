@@ -12,7 +12,15 @@ CORS(app)
 
 # Database setup
 db_path = os.path.join(os.path.dirname(__file__), "stories.db")
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
+    "DATABASE_URL",
+    "postgresql://voice_your_story_db_user:prdbi1TCpi39KCc8eZY9mOeSqasStyhn@dpg-d3k02d6mcj7s73fmdo70-a/voice_your_story_db"
+)
+
+# Fix for older-style URLs (Render sometimes uses "postgres://")
+if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgres://"):
+    app.config["SQLALCHEMY_DATABASE_URI"] = app.config["SQLALCHEMY_DATABASE_URI"].replace("postgres://", "postgresql://")
+
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
