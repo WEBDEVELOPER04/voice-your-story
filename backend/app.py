@@ -139,6 +139,15 @@ def like_story(story_id):
     db.session.commit()
     return jsonify({'id': story.id, 'likes': story.likes})
 
+@app.route("/debug/db")
+def debug_db():
+    return jsonify({
+        "SQLALCHEMY_DATABASE_URI": app.config.get("SQLALCHEMY_DATABASE_URI"),
+        "S3_BUCKET": S3_BUCKET,
+        "S3_REGION": S3_REGION
+    })
+
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
