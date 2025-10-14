@@ -62,6 +62,8 @@ def upload_audio():
             ExtraArgs={'ContentType': 'audio/webm', 'ACL': 'public-read'}
         )
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
     # Generate the S3 URL
