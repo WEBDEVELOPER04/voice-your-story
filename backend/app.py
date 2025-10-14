@@ -139,17 +139,15 @@ def like_story(story_id):
     db.session.commit()
     return jsonify({'id': story.id, 'likes': story.likes})
 
-@app.route('/full_debug')
-def full_debug():
-    import os
-    return jsonify({
-        "AWS_ACCESS_KEY_ID": os.getenv("AWS_ACCESS_KEY_ID"),
-        "AWS_SECRET_ACCESS_KEY": os.getenv("AWS_SECRET_ACCESS_KEY")[:6] + "...",
-        "AWS_S3_BUCKET_NAME": os.getenv("AWS_S3_BUCKET_NAME"),
-        "AWS_S3_REGION": os.getenv("AWS_S3_REGION"),
-        "DATABASE_URL": os.getenv("DATABASE_URL"),
-        "keys_present": list(os.environ.keys())
-    })
+@app.route("/check_db")
+def check_db():
+    from models import Story
+    try:
+        count = Story.query.count()
+        return jsonify({"db_connected": True, "story_count": count})
+    except Exception as e:
+        return jsonify({"db_connected": False, "error": str(e)})
+
 
 
 
