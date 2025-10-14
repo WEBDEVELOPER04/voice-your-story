@@ -139,13 +139,18 @@ def like_story(story_id):
     db.session.commit()
     return jsonify({'id': story.id, 'likes': story.likes})
 
-@app.route("/debug/db")
-def debug_db():
+@app.route('/full_debug')
+def full_debug():
+    import os
     return jsonify({
-        "SQLALCHEMY_DATABASE_URI": app.config.get("SQLALCHEMY_DATABASE_URI"),
-        "S3_BUCKET": S3_BUCKET,
-        "S3_REGION": S3_REGION
+        "AWS_ACCESS_KEY_ID": os.getenv("AWS_ACCESS_KEY_ID"),
+        "AWS_SECRET_ACCESS_KEY": os.getenv("AWS_SECRET_ACCESS_KEY")[:6] + "...",
+        "AWS_S3_BUCKET_NAME": os.getenv("AWS_S3_BUCKET_NAME"),
+        "AWS_S3_REGION": os.getenv("AWS_S3_REGION"),
+        "DATABASE_URL": os.getenv("DATABASE_URL"),
+        "keys_present": list(os.environ.keys())
     })
+
 
 
 if __name__ == '__main__':
