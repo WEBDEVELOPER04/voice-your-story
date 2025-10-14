@@ -58,10 +58,11 @@ def upload_audio():
     
         s3.upload_fileobj(
             audio,
-            S3_BUCKET,
+            os.getenv("AWS_S3_BUCKET_NAME"),
             s3_key,
-            ExtraArgs={'ContentType': 'audio/webm', 'ACL': 'public-read'}
+            ExtraArgs={'ContentType': 'audio/webm'}
         )
+
 
         # Generate the S3 URL
         file_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
