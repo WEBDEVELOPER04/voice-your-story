@@ -41,46 +41,47 @@ s3 = boto3.client(
 
 @app.route('/upload', methods=['POST'])
 def upload_audio():
-    if 'audio' not in request.files:
-        return jsonify({'error': 'No audio file part'}), 400
-
-    audio = request.files['audio']
-    if audio.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-
-    # Give it a unique name
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = secure_filename(f"recording_{timestamp}.webm")
-
-    # Upload to S3
-    s3_key = f"uploads/{filename}"
     try:
+        if 'audio' not in request.files:
+            return jsonify({'error': 'No audio file part'}), 400
+
+        audio = request.files['audio']
+        if audio.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+
+        # Give it a unique name
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = secure_filename(f"recording_{timestamp}.webm")
+
+        # Upload to S3
+        s3_key = f"uploads/{filename}"
+    
         s3.upload_fileobj(
             audio,
             S3_BUCKET,
             s3_key,
             ExtraArgs={'ContentType': 'audio/webm', 'ACL': 'public-read'}
         )
+
+        # Generate the S3 URL
+        file_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
+
+        # Save to database
+        story = Story(filename=s3_key, created_at=datetime.now(timezone.utc))
+        db.session.add(story)
+        db.session.commit()
+
+        return jsonify({
+            'id': story.id,
+            'filename': story.filename,
+            'url': file_url,
+            'created_at': story.created_at.isoformat(),
+            'delete_token': story.delete_token
+        })
     except Exception as e:
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
-
-    # Generate the S3 URL
-    file_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
-
-    # Save to database
-    story = Story(filename=s3_key, created_at=datetime.now(timezone.utc))
-    db.session.add(story)
-    db.session.commit()
-
-    return jsonify({
-        'id': story.id,
-        'filename': story.filename,
-        'url': file_url,
-        'created_at': story.created_at.isoformat(),
-        'delete_token': story.delete_token
-    })
 
 
 @app.route('/stories', methods=['GET'])
