@@ -102,7 +102,7 @@ def list_stories():
         normalized.append({
             'id': s.id,
             'filename': s.filename,
-            'url': f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{s.filename}",
+            'url': s.filename,
             'timestamp': iso,
             'likes': s.likes,
         })
