@@ -90,7 +90,7 @@ function StoryList() {
           </div>
           <audio
             controls
-            src={story.url}
+            src={story.filename}
             className="w-full rounded-lg"
           />
           {/* Reaction Button */}
