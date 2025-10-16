@@ -18,12 +18,12 @@ function Recorder() {
     };
 
     mediaRecorderRef.current.onstop = () => {
-      const blob = new Blob(audioChunks.current, { type: "audio/webm" });
+      const blob = new Blob(audioChunks.current, { type: "audio/mpeg" });
       const url = URL.createObjectURL(blob);
       setAudioURL(url);
 
       const formData = new FormData();
-      formData.append("audio", blob, "recording.webm");
+      formData.append("audio", blob, "recording.mp3");
 
       fetch(`${API_URL}/upload`, {
         method: "POST",

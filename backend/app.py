@@ -66,7 +66,7 @@ def upload_audio():
 
         # Give it a unique name
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = secure_filename(f"recording_{timestamp}.webm")
+        filename = secure_filename(f"recording_{timestamp}.mp3")
 
         # Upload to S3
         s3_key = f"uploads/{filename}"
@@ -75,7 +75,7 @@ def upload_audio():
             audio,
             os.getenv("AWS_S3_BUCKET_NAME"),
             s3_key,
-            ExtraArgs={'ContentType': 'audio/webm'}
+            ExtraArgs={'ContentType': 'audio/mpeg'}
         )
 
 
