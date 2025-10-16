@@ -151,6 +151,23 @@ def check_db():
         return jsonify({"db_connected": True, "story_count": count})
     except Exception as e:
         return jsonify({"db_connected": False, "error": str(e)})
+    
+@app.route("/admin/cleanup_missing", methods=["POST"])
+def cleanup_missing():
+    """Deletes database records whose files no longer exist in S3."""
+    from botocore.exceptions import ClientError
+
+    deleted = 0
+    stories = Story.query.all()
+    for s in stories:
+        try:
+            s3.head_object(Bucket=S3_BUCKET, Key=s.filename)
+        except ClientError as e:
+            if e.response['Error']['Code'] == '404':
+                db.session.delete(s)
+                deleted += 1
+    db.session.commit()
+    return jsonify({"deleted": deleted})
 
 
 
