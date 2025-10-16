@@ -6,6 +6,11 @@ from datetime import datetime, timezone
 from werkzeug.utils import secure_filename
 import uuid
 from models import db, Story
+import threading
+import time
+from botocore.exceptions import ClientError
+from urllib.parse import urlparse
+
 
 app = Flask(__name__)
 CORS(app)
@@ -23,6 +28,16 @@ if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgres://"):
 
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
+
+# Run cleanup in background after startup
+def start_background_cleanup():
+    def run_delayed():
+        time.sleep(5)  # wait for app to fully start
+        cleanup_missing_stories()
+    threading.Thread(target=run_delayed, daemon=True).start()
+
+start_background_cleanup()
+
 
 # Environment vars
 ADMIN_SECRET = os.getenv("ADMIN_SECRET", "supersecret")
@@ -155,7 +170,6 @@ def check_db():
 @app.route("/admin/cleanup_missing", methods=["POST"])
 def cleanup_missing():
     """Deletes database records whose files no longer exist in S3."""
-    from botocore.exceptions import ClientError
 
     deleted = 0
     stories = Story.query.all()
@@ -168,6 +182,44 @@ def cleanup_missing():
                 deleted += 1
     db.session.commit()
     return jsonify({"deleted": deleted})
+
+def cleanup_missing_stories():
+
+    """Automatically removes stories whose files no longer exist in S3."""
+    with app.app_context():
+        from models import Story
+
+        deleted_ids = []
+        for story in Story.query.all():
+            key = story.filename
+
+            # handle both "uploads/..." and full S3 URLs
+            if key.startswith("http"):
+                parsed = urlparse(key)
+                path = parsed.path.lstrip("/")
+                if path.startswith(f"{S3_BUCKET}/"):
+                    key = path[len(f"{S3_BUCKET}/"):]
+                else:
+                    key = path
+
+            try:
+                s3.head_object(Bucket=S3_BUCKET, Key=key)
+            except ClientError as e:
+                code = e.response["Error"]["Code"]
+                if code in ("404", "NoSuchKey", "NotFound"):
+                    app.logger.warning(f"Deleting DB record {story.id} ({key}) — missing in S3.")
+                    db.session.delete(story)
+                    deleted_ids.append(story.id)
+                else:
+                    app.logger.info(f"S3 check skipped for {story.id} ({code})")
+            except Exception as e:
+                app.logger.error(f"Cleanup error for {story.id}: {e}")
+
+        if deleted_ids:
+            db.session.commit()
+            app.logger.info(f"✅ Cleanup complete: removed {len(deleted_ids)} stories {deleted_ids}")
+        else:
+            app.logger.info("🧹 Cleanup check complete — no missing stories found.")
 
 
 
